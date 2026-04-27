@@ -113,8 +113,10 @@ class IdempotencyReplayIntegrationTest {
         long ledgerRowsAfterReplay = ledger.findBySessionIdOrderByIdAsc(ccSession.getSessionId()).size();
 
         // 1. Both CCAs returned the same Result-Code + Granted-Service-Unit
-        assertThat(firstCca.getResultCode()).isEqualTo(2001L);
-        assertThat(replayCca.getResultCode()).isEqualTo(firstCca.getResultCode());
+        int firstRc = firstCca.getResultCode().getInteger32();
+        int replayRc = replayCca.getResultCode().getInteger32();
+        assertThat(firstRc).isEqualTo(2001);
+        assertThat(replayRc).isEqualTo(firstRc);
         assertThat(grantedSeconds(replayCca)).isEqualTo(grantedSeconds(firstCca));
 
         // 2. Balance debited exactly once (1800 -> 1740)

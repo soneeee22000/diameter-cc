@@ -12,8 +12,8 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.annotation.Rollback;
@@ -35,11 +35,7 @@ import dev.pseonkyaw.diametercc.domain.repository.LedgerTransactionRepository;
 @EntityScan("dev.pseonkyaw.diametercc.domain.model")
 @EnableJpaRepositories("dev.pseonkyaw.diametercc.domain.repository")
 @EnableAutoConfiguration
-@ComponentScan(
-    basePackages = "dev.pseonkyaw.diametercc.domain.service",
-    includeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = LedgerService.class)
-)
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, LedgerServiceTest.LedgerOnlyConfig.class})
 @TestPropertySource(properties = {
     "spring.flyway.enabled=true",
     "spring.jpa.hibernate.ddl-auto=validate"
@@ -47,6 +43,14 @@ import dev.pseonkyaw.diametercc.domain.repository.LedgerTransactionRepository;
 @EnabledIfEnvironmentVariable(named = "ENABLE_DOCKER_TESTS", matches = "true",
     disabledReason = "Set ENABLE_DOCKER_TESTS=true to run Docker-based ledger tests")
 class LedgerServiceTest {
+
+    @TestConfiguration
+    static class LedgerOnlyConfig {
+        @Bean
+        LedgerService ledgerService(CreditAccountRepository accounts, LedgerTransactionRepository ledger) {
+            return new LedgerService(accounts, ledger);
+        }
+    }
 
     @Autowired LedgerService ledgerService;
     @Autowired CreditAccountRepository accounts;

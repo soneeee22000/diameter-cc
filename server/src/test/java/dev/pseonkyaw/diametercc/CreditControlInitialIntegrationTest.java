@@ -114,7 +114,7 @@ class CreditControlInitialIntegrationTest {
 
         IMessage cca = answerCapture.answer;
         assertThat(cca).as("CCA received").isNotNull();
-        assertThat(cca.getResultCode()).isEqualTo(2001L);
+        assertThat(cca.getResultCode().getInteger32()).isEqualTo(2001);
 
         Avp grantedGroup = cca.getAvps().getAvp(AvpCodes.GRANTED_SERVICE_UNIT);
         assertThat(grantedGroup).as("Granted-Service-Unit AVP").isNotNull();
