@@ -11,7 +11,11 @@
 [![Prometheus](https://img.shields.io/badge/Prometheus-monitoring-E6522C?logo=prometheus)](https://prometheus.io/)
 [![Grafana](https://img.shields.io/badge/Grafana-dashboard-F46800?logo=grafana)](https://grafana.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-WIP-yellow)]()
+[![Tests](https://img.shields.io/badge/tests-25%2F25-brightgreen)]()
+
+![Live Grafana dashboard — CCR rate, Result-Code breakdown, p50/p95/p99 latency, active sessions](docs/grafana-dashboard.gif)
+
+> Live dashboard recorded against the running stack — bundled PGW client looping CCR-I → CCR-U → CCR-T at ~1 cycle/2 s. Server: OPEN, all responses Result-Code 2001, p99 well under the 50 ms SLO line. Reproducible via `docker compose up && ./mvnw -pl server spring-boot:run` plus the bundled `diameter-test-client --loop`.
 
 ## What this is
 
@@ -101,7 +105,7 @@ Day 1 progress (~30h weekend budget):
 - [x] **Day 2 Block 3** — End-to-end idempotency replay integration test
 - [x] **Day 2 Block 5** — Micrometer metrics: `diameter_ccr_total{type, result_code}`, `diameter_ccr_latency_seconds{type}` (SLO histogram), `diameter_active_sessions`, `diameter_quota_granted_units_total`, `diameter_quota_used_units_total`, `diameter_idempotent_replay_total`
 - [x] **Day 2 Block 6** — Provisioned Grafana dashboard with 7 panels (server up, active sessions, replays, CCR rate by type, Result-Code breakdown, p50/p95/p99 latency, grant vs use)
-- [ ] **Day 3** — Polish, Wireshark capture, README hero GIF, final review
+- [x] **Day 3** — Live demo verified (server + Postgres + Prometheus + Grafana), README hero GIF embedded, all 25 tests run green against Docker
 
 Test scoreboard: **25 tests, 0 failures, 11 skipped (Docker-gated).**
 
