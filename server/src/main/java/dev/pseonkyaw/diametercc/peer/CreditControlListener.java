@@ -7,16 +7,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import dev.pseonkyaw.diametercc.domain.service.CreditControlService;
 import dev.pseonkyaw.diametercc.gy.AvpCodec;
 import dev.pseonkyaw.diametercc.gy.AvpParseException;
+import dev.pseonkyaw.diametercc.gy.CreditControlAnswer;
 import dev.pseonkyaw.diametercc.gy.CreditControlRequest;
 
 /**
  * Inbound entry point for Diameter Credit-Control requests (Application-Id 4).
  *
- * <p>Block 3 scope: parse the inbound CCR via {@link AvpCodec} and log a
- * structured summary. CCA construction is wired in Block 6 (after
- * {@code CreditControlService} exists).
+ * <p>Parses the CCR via {@link AvpCodec}, dispatches to
+ * {@link CreditControlService}, and serializes the resulting
+ * {@link CreditControlAnswer} back into a Diameter Answer.
  *
  * <p>The Diameter Command-Code for CCR/CCA is {@code 272} (RFC 4006 §3).
  */
@@ -28,6 +30,12 @@ public class CreditControlListener implements NetworkReqListener {
     /** Diameter Command-Code for Credit-Control-Request / Credit-Control-Answer. */
     public static final int COMMAND_CODE_CCR_CCA = 272;
 
+    private final CreditControlService creditControl;
+
+    public CreditControlListener(CreditControlService creditControl) {
+        this.creditControl = creditControl;
+    }
+
     @Override
     public Answer processRequest(Request request) {
         if (request.getCommandCode() != COMMAND_CODE_CCR_CCA) {
@@ -37,19 +45,14 @@ public class CreditControlListener implements NetworkReqListener {
 
         try {
             CreditControlRequest ccr = AvpCodec.parseCcr(request);
-            log.info(
-                "CCR parsed — type={} session-id={} request-number={} msisdn={} requested-units={}",
-                ccr.ccRequestType(),
-                ccr.sessionId(),
-                ccr.ccRequestNumber(),
-                ccr.subscriptionId() == null ? null : ccr.subscriptionId().data(),
-                ccr.requestedUnits()
-            );
+            CreditControlAnswer cca = creditControl.handle(ccr);
+            return AvpCodec.buildCca(request, cca);
         } catch (AvpParseException e) {
             log.warn("Rejecting malformed CCR — {}", e.getMessage());
+            return null;
+        } catch (Exception e) {
+            log.error("Unexpected error handling CCR", e);
+            return null;
         }
-
-        // Block 6 will build and return a real CCA via CreditControlService + AvpCodec.
-        return null;
     }
 }

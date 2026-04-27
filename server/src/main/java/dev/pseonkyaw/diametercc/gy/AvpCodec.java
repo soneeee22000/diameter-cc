@@ -1,5 +1,6 @@
 package dev.pseonkyaw.diametercc.gy;
 
+import org.jdiameter.api.Answer;
 import org.jdiameter.api.Avp;
 import org.jdiameter.api.AvpDataException;
 import org.jdiameter.api.AvpSet;
@@ -105,5 +106,43 @@ public final class AvpCodec {
     private static Integer optionalInt(AvpSet avps, int code) throws AvpDataException {
         Avp a = avps.getAvp(code);
         return a == null ? null : a.getInteger32();
+    }
+
+    /**
+     * Build a Diameter Credit-Control-Answer (CCA) on top of the inbound CCR.
+     *
+     * <p>The Answer object inherits Session-Id, Origin-Host, Origin-Realm,
+     * Hop-by-Hop-Identifier and End-to-End-Identifier from the request via
+     * {@link Request#createAnswer()}. This method only adds the
+     * application-specific AVPs (Result-Code, CC-Request-Type, CC-Request-
+     * Number, Granted-Service-Unit, Auth-Application-Id).
+     *
+     * @return the populated {@link Answer} ready to send back over the wire
+     */
+    public static Answer buildCca(Request request, CreditControlAnswer cca) {
+        Answer answer = request.createAnswer(cca.resultCode());
+        AvpSet out = answer.getAvps();
+
+        // Auth-Application-Id (mandatory for non-base apps)
+        if (out.getAvp(AvpCodes.AUTH_APPLICATION_ID) == null) {
+            out.addAvp(AvpCodes.AUTH_APPLICATION_ID, cca.authApplicationId(), true, false, true);
+        }
+
+        // CC-Request-Type / -Number — echoed back per RFC 4006 §3.2
+        out.addAvp(AvpCodes.CC_REQUEST_TYPE, cca.ccRequestType().code(), true, false);
+        out.addAvp(AvpCodes.CC_REQUEST_NUMBER, cca.ccRequestNumber(), true, false);
+
+        // Granted-Service-Unit (optional on TERMINATION; required on INITIAL/UPDATE success)
+        if (cca.grantedUnits() != null && !cca.grantedUnits().isEmpty()) {
+            AvpSet granted = out.addGroupedAvp(AvpCodes.GRANTED_SERVICE_UNIT, true, false);
+            granted.addAvp(AvpCodes.CC_TIME, cca.grantedUnits().ccTimeSeconds(), true, false, true);
+        }
+
+        // Validity-Time (optional)
+        if (cca.validityTime() != null) {
+            out.addAvp(AvpCodes.VALIDITY_TIME, cca.validityTime(), true, false);
+        }
+
+        return answer;
     }
 }
