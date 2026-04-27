@@ -91,14 +91,16 @@ These are documented gaps, not oversights. Each is a real production concern sco
 Day 1 progress (~30h weekend budget):
 
 - [x] **Block 1** — Maven multi-module scaffold, Spring Boot wiring, jdiameter peer-handshake spike (CER/CEA verified end-to-end)
-- [ ] Block 2 — Production NetworkReqListener wired into Spring lifecycle
-- [ ] Block 3 — `AvpCodec` parses CCR-Initial AVPs
-- [ ] Block 4 — JPA entities (CreditAccount, CcSession, Reservation, LedgerTransaction)
-- [ ] Block 5 — `LedgerService` transactional reserve/debit/grant
-- [ ] Block 6 — `CreditControlService.handleInitial` returns CCA-I with quota grant
-- [ ] Block 7 — First CCR-I integration test
-- [ ] Day 2 — CCR-Update, CCR-Terminate, idempotency, Grafana
+- [x] **Block 2** — Production `CreditControlListener` wired into Spring lifecycle
+- [x] **Block 3** — `AvpCodec` parses CCR-Initial / Update / Termination
+- [x] **Block 4** — JPA entities + repositories (CreditAccount, CcSession, Reservation, LedgerTransaction) + Testcontainers wiring
+- [x] **Block 5** — `LedgerService` transactional reserve / debit / refund primitives
+- [x] **Block 6** — `CreditControlService.handleInitial` returns CCA-I with quota grant; idempotency cache short-circuits replays
+- [x] **Block 7** — End-to-end CCR-Initial integration test (Docker-gated)
+- [ ] Day 2 — CCR-Update, CCR-Terminate, full idempotency replay test, Grafana dashboard
 - [ ] Day 3 — Polish, Wireshark capture, README final
+
+Test scoreboard: **20 tests, 0 failures, 10 skipped (Docker-gated).**
 
 ## License
 
