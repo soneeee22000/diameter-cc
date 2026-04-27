@@ -5,7 +5,8 @@ CREATE TABLE credit_account (
   balance_units BIGINT NOT NULL CHECK (balance_units >= 0),
   unit_type VARCHAR(32) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now (),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now ()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now (),
+  version BIGINT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE cc_session (
