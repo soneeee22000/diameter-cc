@@ -26,31 +26,28 @@ public class DiameterPeerLifecycle {
 
     private static final Logger log = LoggerFactory.getLogger(DiameterPeerLifecycle.class);
 
-    /** 3GPP Vendor-Id, ITU-T E.164 / IANA registry. */
-    public static final long VENDOR_3GPP = 10415L;
-    /** Diameter Credit-Control Application-Id, RFC 4006 §1.1. */
+    /**
+     * Standard Diameter Credit-Control Application-Id, RFC 4006 §1.1.
+     * Non-vendor-specific (Vendor-Id = 0).
+     */
     public static final long APP_ID_GY = 4L;
 
     private final Stack stack;
+    private final CreditControlListener creditControlListener;
 
-    public DiameterPeerLifecycle(Stack stack) {
+    public DiameterPeerLifecycle(Stack stack, CreditControlListener creditControlListener) {
         this.stack = stack;
+        this.creditControlListener = creditControlListener;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void start() throws Exception {
         Network network = stack.unwrap(Network.class);
-        ApplicationId gy = ApplicationId.createByAuthAppId(VENDOR_3GPP, APP_ID_GY);
-
-        // App listeners will be registered later (Day 1 block 4 onward).
-        // For now, we just start the Stack to verify CER/CEA peer handshake.
-        network.addNetworkReqListener(req -> {
-            log.warn("Received Diameter request before any handler is wired: command-code={}", req.getCommandCode());
-            return null;
-        }, gy);
+        ApplicationId gy = ApplicationId.createByAuthAppId(APP_ID_GY);
+        network.addNetworkReqListener(creditControlListener, gy);
 
         stack.start();
-        log.info("Diameter Stack started — Application-Id Gy ({}) registered, awaiting peer connections", APP_ID_GY);
+        log.info("Diameter Stack started — Gy (App-Id {}) listener registered, accepting peer connections", APP_ID_GY);
     }
 
     @PreDestroy
