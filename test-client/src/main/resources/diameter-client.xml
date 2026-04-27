@@ -8,7 +8,7 @@
 <Configuration xmlns="http://www.jdiameter.org/jdiameter-server">
 
     <LocalPeer>
-        <URI value="aaa://test-client.local:3869"/>
+        <URI value="aaa://127.0.0.2:3869"/>
         <IPAddresses>
             <IPAddress value="0.0.0.0"/>
         </IPAddresses>
@@ -45,13 +45,13 @@
 
     <Network>
         <Peers>
-            <Peer name="aaa://diameter-cc-server:3868"
+            <Peer name="aaa://127.0.0.1:3868"
                   attempt_connect="true"
                   rating="1"/>
         </Peers>
         <Realms>
             <Realm name="pseonkyaw.dev"
-                   peers="diameter-cc-server"
+                   peers="127.0.0.1"
                    local_action="LOCAL"
                    dynamic="false"
                    exp_time="1">

@@ -53,13 +53,13 @@
 
     <Network>
         <Peers>
-            <Peer name="aaa://test-client.local:3869"
+            <Peer name="aaa://127.0.0.2:3869"
                   attempt_connect="false"
                   rating="1"/>
         </Peers>
         <Realms>
             <Realm name="pseonkyaw.dev"
-                   peers="test-client.local"
+                   peers="127.0.0.2"
                    local_action="LOCAL"
                    dynamic="false"
                    exp_time="1">
