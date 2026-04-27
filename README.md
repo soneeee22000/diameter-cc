@@ -97,10 +97,13 @@ Day 1 progress (~30h weekend budget):
 - [x] **Block 5** — `LedgerService` transactional reserve / debit / refund primitives
 - [x] **Block 6** — `CreditControlService.handleInitial` returns CCA-I with quota grant; idempotency cache short-circuits replays
 - [x] **Block 7** — End-to-end CCR-Initial integration test (Docker-gated)
-- [ ] Day 2 — CCR-Update, CCR-Terminate, full idempotency replay test, Grafana dashboard
-- [ ] Day 3 — Polish, Wireshark capture, README final
+- [x] **Day 2 Block 1+2** — CCR-Update + CCR-Terminate full flows (refund of unused, debit of used, optional new grant, session close)
+- [x] **Day 2 Block 3** — End-to-end idempotency replay integration test
+- [x] **Day 2 Block 5** — Micrometer metrics: `diameter_ccr_total{type, result_code}`, `diameter_ccr_latency_seconds{type}` (SLO histogram), `diameter_active_sessions`, `diameter_quota_granted_units_total`, `diameter_quota_used_units_total`, `diameter_idempotent_replay_total`
+- [x] **Day 2 Block 6** — Provisioned Grafana dashboard with 7 panels (server up, active sessions, replays, CCR rate by type, Result-Code breakdown, p50/p95/p99 latency, grant vs use)
+- [ ] **Day 3** — Polish, Wireshark capture, README hero GIF, final review
 
-Test scoreboard: **20 tests, 0 failures, 10 skipped (Docker-gated).**
+Test scoreboard: **25 tests, 0 failures, 11 skipped (Docker-gated).**
 
 ## License
 

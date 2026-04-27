@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import dev.pseonkyaw.diametercc.domain.model.CcSession;
 import dev.pseonkyaw.diametercc.domain.model.Reservation;
 import dev.pseonkyaw.diametercc.domain.model.ReservationKey;
+import dev.pseonkyaw.diametercc.observability.DiameterMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import dev.pseonkyaw.diametercc.domain.repository.CcSessionRepository;
 import dev.pseonkyaw.diametercc.domain.repository.ReservationRepository;
 import dev.pseonkyaw.diametercc.gy.CcRequestType;
@@ -40,8 +42,9 @@ class CreditControlServiceTest {
         ledger = mock(LedgerService.class);
         reservations = mock(ReservationRepository.class);
         sessions = mock(CcSessionRepository.class);
+        DiameterMetrics metrics = new DiameterMetrics(new SimpleMeterRegistry());
         service = new CreditControlService(
-            ledger, reservations, sessions, "diameter-cc.local", "pseonkyaw.dev");
+            ledger, reservations, sessions, metrics, "diameter-cc.local", "pseonkyaw.dev");
     }
 
     private static CreditControlRequest ccrInitial(String sessionId, String msisdn, long requestedSeconds) {

@@ -7,11 +7,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.time.Instant;
+
 import dev.pseonkyaw.diametercc.domain.service.CreditControlService;
 import dev.pseonkyaw.diametercc.gy.AvpCodec;
 import dev.pseonkyaw.diametercc.gy.AvpParseException;
 import dev.pseonkyaw.diametercc.gy.CreditControlAnswer;
 import dev.pseonkyaw.diametercc.gy.CreditControlRequest;
+import dev.pseonkyaw.diametercc.observability.DiameterMetrics;
 
 /**
  * Inbound entry point for Diameter Credit-Control requests (Application-Id 4).
@@ -31,9 +35,11 @@ public class CreditControlListener implements NetworkReqListener {
     public static final int COMMAND_CODE_CCR_CCA = 272;
 
     private final CreditControlService creditControl;
+    private final DiameterMetrics metrics;
 
-    public CreditControlListener(CreditControlService creditControl) {
+    public CreditControlListener(CreditControlService creditControl, DiameterMetrics metrics) {
         this.creditControl = creditControl;
+        this.metrics = metrics;
     }
 
     @Override
@@ -43,9 +49,11 @@ public class CreditControlListener implements NetworkReqListener {
             return null;
         }
 
+        Instant start = Instant.now();
         try {
             CreditControlRequest ccr = AvpCodec.parseCcr(request);
             CreditControlAnswer cca = creditControl.handle(ccr);
+            metrics.recordHandled(cca.ccRequestType(), cca.resultCode(), Duration.between(start, Instant.now()));
             return AvpCodec.buildCca(request, cca);
         } catch (AvpParseException e) {
             log.warn("Rejecting malformed CCR — {}", e.getMessage());

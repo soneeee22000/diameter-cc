@@ -19,6 +19,7 @@ import dev.pseonkyaw.diametercc.gy.CreditControlRequest;
 import dev.pseonkyaw.diametercc.gy.ResultCode;
 import dev.pseonkyaw.diametercc.gy.ServiceUnit;
 import dev.pseonkyaw.diametercc.gy.SubscriptionId;
+import dev.pseonkyaw.diametercc.observability.DiameterMetrics;
 
 /**
  * Orchestrates the Diameter Credit-Control flow on top of {@link LedgerService}.
@@ -40,17 +41,20 @@ public class CreditControlService {
     private final LedgerService ledger;
     private final ReservationRepository reservations;
     private final CcSessionRepository sessions;
+    private final DiameterMetrics metrics;
     private final String originHost;
     private final String originRealm;
 
     public CreditControlService(LedgerService ledger,
                                 ReservationRepository reservations,
                                 CcSessionRepository sessions,
+                                DiameterMetrics metrics,
                                 @Value("${diameter.origin-host}") String originHost,
                                 @Value("${diameter.origin-realm}") String originRealm) {
         this.ledger = ledger;
         this.reservations = reservations;
         this.sessions = sessions;
+        this.metrics = metrics;
         this.originHost = originHost;
         this.originRealm = originRealm;
     }
@@ -62,6 +66,7 @@ public class CreditControlService {
         if (cached.isPresent()) {
             log.info("Replay detected — returning cached answer for session={} req#={}",
                 ccr.sessionId(), ccr.ccRequestNumber());
+            metrics.recordReplay();
             return rebuildFromCache(ccr, cached.get());
         }
 
@@ -98,9 +103,11 @@ public class CreditControlService {
                 CcSession s = new CcSession(ccr.sessionId(), msisdn);
                 s.recordGrant(granted, ccr.ccRequestNumber());
                 sessions.save(s);
+                metrics.sessionOpened();
             }
         );
 
+        metrics.recordGrant(granted);
         log.info("CCR-Initial granted — msisdn={} requested={} granted={}", msisdn, requested, granted);
         return persistAndReturn(ccr, ResultCode.DIAMETER_SUCCESS, key, requested, 0L, granted);
     }
@@ -145,6 +152,8 @@ public class CreditControlService {
             session.recordGrant(newGranted, ccr.ccRequestNumber());
         }
 
+        metrics.recordUsage(used);
+        metrics.recordGrant(newGranted);
         log.info("CCR-Update — session={} req#={} used={} unused-refunded={} new-granted={}",
             ccr.sessionId(), ccr.ccRequestNumber(), used, unused, newGranted);
         return persistAndReturn(ccr, ResultCode.DIAMETER_SUCCESS, key, newRequested, used, newGranted);
@@ -179,6 +188,8 @@ public class CreditControlService {
         session.recordUsage(used, ccr.ccRequestNumber());
         session.terminate(ccr.ccRequestNumber());
 
+        metrics.recordUsage(used);
+        metrics.sessionClosed();
         log.info("CCR-Termination — session={} req#={} used={} unused-refunded={}",
             ccr.sessionId(), ccr.ccRequestNumber(), used, unused);
         return persistAndReturn(ccr, ResultCode.DIAMETER_SUCCESS, key, 0L, used, 0L);
