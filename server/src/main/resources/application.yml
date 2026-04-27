@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: diameter-cc
+
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5434/diametercc}
+    username: ${POSTGRES_USER:diametercc}
+    password: ${POSTGRES_PASSWORD:diametercc}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+server:
+  port: ${SERVER_PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    distribution:
+      percentiles-histogram:
+        diameter.ccr.latency: true
+      slo:
+        diameter.ccr.latency: 5ms,10ms,25ms,50ms,100ms,250ms
+
+diameter:
+  stack-xml-classpath: /diameter-server.xml
+  origin-host: diameter-cc.local
+  origin-realm: pseonkyaw.dev
+  listen-port: 3868
+
+logging:
+  level:
+    org.jdiameter: INFO
+    dev.pseonkyaw.diametercc: DEBUG
