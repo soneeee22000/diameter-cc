@@ -105,16 +105,97 @@ public class CreditControlService {
         return persistAndReturn(ccr, ResultCode.DIAMETER_SUCCESS, key, requested, 0L, granted);
     }
 
-    /** Block 6 stub — full Update logic ships in Day 2. */
+    /**
+     * Reconcile the previous grant against reported usage, refund the unused
+     * remainder back to the balance, and reserve a new quota.
+     *
+     * <p>The previously-granted-but-not-yet-consumed amount lives on the
+     * Reservation row at request-number = (this.requestNumber - 1).
+     */
     private CreditControlAnswer handleUpdate(CreditControlRequest ccr, ReservationKey key) {
-        log.warn("CCR-Update handling is a Day-2 stub — returning SUCCESS with no new grant");
-        return persistAndReturn(ccr, ResultCode.DIAMETER_SUCCESS, key, 0L, 0L, 0L);
+        Optional<CcSession> sessionOpt = sessions.findById(ccr.sessionId());
+        if (sessionOpt.isEmpty()) {
+            log.warn("CCR-Update rejected — unknown session-id={}", ccr.sessionId());
+            return persistAndReturn(ccr, ResultCode.DIAMETER_AUTHORIZATION_REJECTED, key, 0L, 0L, 0L);
+        }
+        CcSession session = sessionOpt.get();
+        if (session.getState() == CcSession.State.TERMINATED) {
+            log.warn("CCR-Update rejected — session already terminated session-id={}", ccr.sessionId());
+            return persistAndReturn(ccr, ResultCode.DIAMETER_AUTHORIZATION_REJECTED, key, 0L, 0L, 0L);
+        }
+
+        long outstanding = previousGrant(ccr.sessionId(), ccr.ccRequestNumber());
+        long used = ccr.usedUnits() != null && ccr.usedUnits().ccTimeSeconds() != null
+            ? ccr.usedUnits().ccTimeSeconds() : 0L;
+        used = Math.min(used, outstanding);
+        long unused = outstanding - used;
+
+        if (unused > 0L) {
+            ledger.refund(session.getMsisdn(), unused, ccr.sessionId(), ccr.ccRequestNumber());
+        }
+        ledger.recordDebit(session.getMsisdn(), used, ccr.sessionId(), ccr.ccRequestNumber());
+        session.recordUsage(used, ccr.ccRequestNumber());
+
+        long newRequested = ccr.requestedUnits() != null && ccr.requestedUnits().ccTimeSeconds() != null
+            ? ccr.requestedUnits().ccTimeSeconds() : 0L;
+        long newGranted = newRequested > 0L
+            ? ledger.reserve(session.getMsisdn(), newRequested, ccr.sessionId(), ccr.ccRequestNumber())
+            : 0L;
+        if (newGranted > 0L) {
+            session.recordGrant(newGranted, ccr.ccRequestNumber());
+        }
+
+        log.info("CCR-Update — session={} req#={} used={} unused-refunded={} new-granted={}",
+            ccr.sessionId(), ccr.ccRequestNumber(), used, unused, newGranted);
+        return persistAndReturn(ccr, ResultCode.DIAMETER_SUCCESS, key, newRequested, used, newGranted);
     }
 
-    /** Block 6 stub — full Terminate logic ships in Day 2. */
+    /**
+     * Final reconciliation: refund any unused remainder of the last grant,
+     * close the session, and return CCA-T with no new grant.
+     */
     private CreditControlAnswer handleTerminate(CreditControlRequest ccr, ReservationKey key) {
-        log.warn("CCR-Termination handling is a Day-2 stub — returning SUCCESS");
-        return persistAndReturn(ccr, ResultCode.DIAMETER_SUCCESS, key, 0L, 0L, 0L);
+        Optional<CcSession> sessionOpt = sessions.findById(ccr.sessionId());
+        if (sessionOpt.isEmpty()) {
+            log.warn("CCR-Termination rejected — unknown session-id={}", ccr.sessionId());
+            return persistAndReturn(ccr, ResultCode.DIAMETER_AUTHORIZATION_REJECTED, key, 0L, 0L, 0L);
+        }
+        CcSession session = sessionOpt.get();
+        if (session.getState() == CcSession.State.TERMINATED) {
+            // Already terminated — idempotent: just acknowledge SUCCESS without any side effects.
+            return persistAndReturn(ccr, ResultCode.DIAMETER_SUCCESS, key, 0L, 0L, 0L);
+        }
+
+        long outstanding = previousGrant(ccr.sessionId(), ccr.ccRequestNumber());
+        long used = ccr.usedUnits() != null && ccr.usedUnits().ccTimeSeconds() != null
+            ? ccr.usedUnits().ccTimeSeconds() : 0L;
+        used = Math.min(used, outstanding);
+        long unused = outstanding - used;
+
+        if (unused > 0L) {
+            ledger.refund(session.getMsisdn(), unused, ccr.sessionId(), ccr.ccRequestNumber());
+        }
+        ledger.recordDebit(session.getMsisdn(), used, ccr.sessionId(), ccr.ccRequestNumber());
+        session.recordUsage(used, ccr.ccRequestNumber());
+        session.terminate(ccr.ccRequestNumber());
+
+        log.info("CCR-Termination — session={} req#={} used={} unused-refunded={}",
+            ccr.sessionId(), ccr.ccRequestNumber(), used, unused);
+        return persistAndReturn(ccr, ResultCode.DIAMETER_SUCCESS, key, 0L, used, 0L);
+    }
+
+    /**
+     * Look up the granted-units carried on the immediately-preceding
+     * Reservation row (cc_request_number - 1). Returns 0 if no predecessor
+     * exists, which is treated as "no outstanding reservation".
+     */
+    private long previousGrant(String sessionId, int currentRequestNumber) {
+        if (currentRequestNumber <= 0) {
+            return 0L;
+        }
+        return reservations.findById(new ReservationKey(sessionId, currentRequestNumber - 1))
+            .map(Reservation::getGrantedUnits)
+            .orElse(0L);
     }
 
     private CreditControlAnswer handleEvent(CreditControlRequest ccr, ReservationKey key) {
